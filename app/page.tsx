@@ -11,6 +11,16 @@ type Event = {
   time: string;
 };
 
+export function filterEvents(events: Event[], filterDays: number|null):Event[] {
+  return events.filter((event) => {
+    if (!filterDays) return true;
+    const today = new Date();
+    const eventDate = new Date(event.date);
+    const diffInDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    return diffInDays <= filterDays;
+  });
+}
+
 export default function Home() {
   const [events, setEvents] = useState<Event[]>([
     { id: 1, name: "Concert Armin Van Buuren", date: "2025-04-10", time: "20:00" },
