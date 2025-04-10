@@ -73,11 +73,34 @@ export default function Home() {
     const diffInDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     return diffInDays <= filterDays;
   });
-  
+  const today = new Date();
+
+// Find earliest event
+const earliestEvent = filteredEvents.reduce((earliest, event) => {
+  return new Date(event.date) < new Date(earliest.date) ? event : earliest;
+}, filteredEvents[0]);
+
+// Find latest event
+const latestEvent = filteredEvents.reduce((latest, event) => {
+  return new Date(event.date) > new Date(latest.date) ? event : latest;
+}, filteredEvents[0]);
+
+// Calculate average days until events
+const totalDays = filteredEvents.reduce((sum, event) => {
+  const eventDate = new Date(event.date);
+  return sum + Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}, 0);
+
+const averageDaysUntilEvent = filteredEvents.length ? Math.round(totalDays / filteredEvents.length) : 0;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white p-6">
       <div className="max-w-2xl mx-auto">
         <h1 className="text-3xl font-bold mb-6 text-center">🎉 Upcoming Events</h1>
+        <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-6">
+        <h2 className="text-xl font-semibold text-center">📊 Event Statistics</h2>
+        <p className="text-gray-400 text-center">📅 Average days until events: {averageDaysUntilEvent} days</p>
+        </div>
 
         {/* Add/edit form */}
         <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-6">
@@ -132,23 +155,36 @@ export default function Home() {
         {/* Show event list */}
         
         <ul className="space-y-4">
-          {filteredEvents.map((event) => (
-            <li key={event.id} className="bg-gray-800 p-4 rounded-lg shadow-md flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-semibold">{event.name}</h2>
-                <p className="text-gray-400">{event.date} - {event.time}</p>
-              </div>
-              <div className="space-x-2">
-                <Button variant="outline" onClick={() => startEditing(event)} className="border-gray-500 text-gray-300 hover:bg-gray-700">
-                  Edit
-                </Button>
-                <Button variant="destructive" onClick={() => handleDeleteEvent(event.id)}>
-                  Delete
-                </Button>
-              </div>
-            </li>
-          ))}
+          {filteredEvents.map((event) => {
+            const isEarliest = event.id === earliestEvent.id;
+            const isLatest = event.id === latestEvent.id;
+
+            return (
+              <li
+                key={event.id}
+                className={`p-4 rounded-lg shadow-md flex justify-between items-center ${
+                  isEarliest ? "bg-green-700" : isLatest ? "bg-red-700" : "bg-gray-800"
+                }`}
+              >
+                <div>
+                  <h2 className="text-lg font-semibold">{event.name}</h2>
+                  <p className="text-gray-400">{event.date} - {event.time}</p>
+                  {isEarliest && <p className="text-green-300">🔥 Earliest Event</p>}
+                  {isLatest && <p className="text-red-300">🚀 Latest Event</p>}
+                </div>
+                <div className="space-x-2">
+                  <Button variant="outline" onClick={() => startEditing(event)} className="border-gray-500 text-gray-300 hover:bg-gray-700">
+                    Edit
+                  </Button>
+                  <Button variant="destructive" onClick={() => handleDeleteEvent(event.id)}>
+                    Delete
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
+
       </div>
     </div>
   );
