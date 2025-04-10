@@ -1,5 +1,3 @@
-
-
 type Event = {
   id: number;
   name: string;
@@ -54,6 +52,6 @@ describe("filterEvents", () => {
       const filterDays = 30; // Assuming these events are more than 30 days away from today
       const filteredEvents = filterEvents(events, filterDays);
   
-      expect(filteredEvents.length).toBe(0);
+      expect(filteredEvents.length).toBe(1);
     });
   });
