@@ -23,7 +23,7 @@ A dynamic full-stack calendar application designed for organizing, displaying, a
 **Frontend**
 - React (Next.js)
 - TypeScript
-- CSS Modules / Tailwind CSS (if used)
+- CSS Modules / Tailwind CSS 
 
 **Backend**
 - Node.js
@@ -34,7 +34,7 @@ A dynamic full-stack calendar application designed for organizing, displaying, a
 **Other**
 - CORS
 - RESTful API
-- Jest / Mocha for unit testing (if implemented)
+- Jest  for unit testing 
 
 ---
 
@@ -43,6 +43,4 @@ A dynamic full-stack calendar application designed for organizing, displaying, a
 Coming soon...
 
 ---
-
-## 📂 Project Structure (Simplified)
 
