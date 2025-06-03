@@ -1,6 +1,14 @@
-version: '3.8'
-
 services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+      - "5555:5555"
+    environment:
+      - DATABASE_URL=postgresql://postgres:patrick2004@db:5432/calendar?schema=public
+    depends_on:
+      - db
+
   db:
     image: postgres:16
     restart: always
@@ -8,21 +16,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: patrick2004
       POSTGRES_DB: calendar
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
-  web:
-    build: .
-    depends_on:
-      - db
-    environment:
-      DATABASE_URL: postgresql://postgres:patrick2004@db:5432/calendar?schema=public
-    ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
 
 volumes:
   postgres_data:
