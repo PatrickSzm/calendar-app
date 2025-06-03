@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";  // Import useRouter
 import { Button } from "@/components/ui/button";
 
 type Event = {
@@ -12,21 +13,59 @@ type Event = {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [newEvent, setNewEvent] = useState<Omit<Event, "id">>({
     name: "",
     date: "",
     time: "",
-    userId: 1, // hardcoded for now
+    userId: 1, // hardcoded for now; ideally, set from logged-in user id
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [filterDays, setFilterDays] = useState<number | null>(null);
 
+  // Check if user is logged in by token presence, else redirect to login
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/login");  // Redirect to login page
+    } else {
+      fetchEvents();
+    }
+  }, []);
+
+  // Helper to get JWT token from localStorage
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      return {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      };
+    }
+    return {
+      "Content-Type": "application/json",
+    };
+  };
+
+
+
+
+
   // fetch events from backend on load
   const fetchEvents = async () => {
-    const res = await fetch("/api/events");
-    const data = await res.json();
-    setEvents(data);
+    const res = await fetch("/api/events", {
+      headers: getAuthHeaders(),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setEvents(data);
+    } else if (res.status === 401) {
+      alert("Unauthorized! Please log in.");
+      setEvents([]);
+    } else {
+      alert("Failed to fetch events");
+    }
   };
 
   useEffect(() => {
@@ -41,9 +80,7 @@ export default function Home() {
 
     const res = await fetch("/api/events", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(newEvent),
     });
 
@@ -57,12 +94,20 @@ export default function Home() {
   };
 
   const handleDeleteEvent = async (id: number) => {
-    await fetch(`/api/events/${id}`, {
+    const res = await fetch(`/api/events/${id}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
     });
-    fetchEvents();
+    if (res.ok) {
+      fetchEvents();
+    } else {
+      alert("Failed to delete event");
+    }
   };
-
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    router.push("/login");
+  };
   const startEditing = (event: Event) => {
     setNewEvent({ name: event.name, date: event.date, time: event.time, userId: event.userId });
     setEditingId(event.id);
@@ -71,17 +116,19 @@ export default function Home() {
   const handleEditEvent = async () => {
     if (!editingId) return;
 
-    await fetch(`/api/events/${editingId}`, {
+    const res = await fetch(`/api/events/${editingId}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(newEvent),
     });
 
-    setEditingId(null);
-    setNewEvent({ name: "", date: "", time: "", userId: 1 });
-    fetchEvents();
+    if (res.ok) {
+      setEditingId(null);
+      setNewEvent({ name: "", date: "", time: "", userId: 1 });
+      fetchEvents();
+    } else {
+      alert("Failed to edit event");
+    }
   };
 
   const today = new Date();
@@ -113,7 +160,12 @@ export default function Home() {
           <h2 className="text-xl font-semibold text-center">📊 Event Statistics</h2>
           <p className="text-gray-400 text-center">📅 Average days until events: {averageDaysUntilEvent} days</p>
         </div>
-
+        <button
+        onClick={handleLogout}
+        className="mb-4 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded"
+      >
+        Logout
+      </button>
         <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-6">
           <input
             type="text"
@@ -174,7 +226,9 @@ export default function Home() {
               >
                 <div>
                   <h2 className="text-lg font-semibold">{event.name}</h2>
-                  <p className="text-gray-400">{event.date} - {event.time}</p>
+                  <p className="text-gray-400">
+                    {event.date} - {event.time}
+                  </p>
                   {isEarliest && <p className="text-green-300">🔥 Earliest Event</p>}
                   {isLatest && <p className="text-red-300">🚀 Latest Event</p>}
                 </div>
@@ -186,10 +240,7 @@ export default function Home() {
                   >
                     Edit
                   </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDeleteEvent(event.id)}
-                  >
+                  <Button variant="destructive" onClick={() => handleDeleteEvent(event.id)}>
                     Delete
                   </Button>
                 </div>
