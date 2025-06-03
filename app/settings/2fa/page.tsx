@@ -1,147 +1,118 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
 
-type Event = {
-  id: number;
-  name: string;
-  date: string;
-  time: string;
+
+
+
+type JwtPayload = {
   userId: number;
+  email: string;
+  twoFactorEnabled: boolean;
 };
 
-export default function Home() {
-  const router = useRouter();
-  const [events, setEvents] = useState<Event[]>([]);
-  const [newEvent, setNewEvent] = useState<Omit<Event, "id">>({
-    name: "",
-    date: "",
-    time: "",
-    userId: 0,
-  });
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [filterDays, setFilterDays] = useState<number | null>(null);
+export default function Enable2FAPage() {
+  const [secret, setSecret] = useState<string | null>(null);
+  const [otpUrl, setOtpUrl] = useState<string | null>(null);
+  const [token, setToken] = useState("");
+  const [message, setMessage] = useState("");
+  const [userId, setUserId] = useState<number | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
+    const storedToken = localStorage.getItem("token");
+    if (storedToken) {
+      try {
+        const decoded = jwtDecode<JwtPayload>(storedToken);
+        console.log("Decoded JWT:", decoded);
+        setUserId(decoded.userId);
+      } catch {
+        setMessage("Invalid token. Please log in again.");
+      }
     } else {
-      fetchEvents();
+      setMessage("You must be logged in to enable 2FA.");
     }
   }, []);
 
-  const getAuthHeaders = (): Record<string, string> => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      return {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-    }
-    return {
-      "Content-Type": "application/json",
-    };
-  };
-
-  const fetchEvents = async () => {
-    const res = await fetch("/api/events", {
-      headers: getAuthHeaders(),
+  async function generateSecret() {
+    if (!userId) return;
+    const res = await fetch("/api/auth/enable-2fa", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
     });
+
     if (res.ok) {
       const data = await res.json();
-      setEvents(data);
-    } else if (res.status === 401) {
-      alert("Unauthorized! Please log in.");
-      setEvents([]);
+      setSecret(data.secret);
+      setOtpUrl(data.otpauth_url);
+      setMessage("");
     } else {
-      alert("Failed to fetch events");
+      setMessage("Failed to generate 2FA secret.");
     }
-  };
+  }
 
-  const handleAddEvent = async () => {
-    if (!newEvent.name || !newEvent.date || !newEvent.time) {
-      alert("Completează toate câmpurile!");
-      return;
-    }
-
-    const res = await fetch("/api/events", {
+  async function verifyToken() {
+    if (!userId) return;
+    const res = await fetch("/api/auth/verify-2fa", {
       method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        name: newEvent.name,
-        date: newEvent.date,
-        time: newEvent.time,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, token }),
     });
 
     if (res.ok) {
-      setNewEvent({ name: "", date: "", time: "", userId: 0 });
-      fetchEvents();
+      setMessage("Two-factor authentication enabled successfully!");
     } else {
-      const error = await res.json();
-      alert("Error: " + error.error);
+      const data = await res.json();
+      setMessage(data.message || "Verification failed");
     }
-  };
-
-  const handleDeleteEvent = async (id: number) => {
-    const res = await fetch(`/api/events/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-    if (res.ok) {
-      fetchEvents();
-    } else {
-      alert("Failed to delete event");
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    router.push("/login");
-  };
-
-  const startEditing = (event: Event) => {
-    setNewEvent({ name: event.name, date: event.date, time: event.time, userId: event.userId });
-    setEditingId(event.id);
-  };
-
-  const handleEditEvent = async () => {
-    if (!editingId) return;
-
-    const res = await fetch(`/api/events/${editingId}`, {
-      method: "PUT",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        name: newEvent.name,
-        date: newEvent.date,
-        time: newEvent.time,
-      }),
-    });
-
-    if (res.ok) {
-      setEditingId(null);
-      setNewEvent({ name: "", date: "", time: "", userId: 0 });
-      fetchEvents();
-    } else {
-      alert("Failed to edit event");
-    }
-  };
-
-  // Filtering and sorting logic remains unchanged
-  // ... your existing code here ...
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Your UI code unchanged */}
-        <button onClick={handleLogout} className="mb-4 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded">
-          Logout
+    <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center">
+      <h1 className="text-3xl mb-4">Enable Two-Factor Authentication</h1>
+
+      {!secret && (
+        <button
+          onClick={generateSecret}
+          className="mb-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
+        >
+          Generate 2FA Secret
         </button>
-        {/* rest of the form and event list */}
-      </div>
+      )}
+
+      {secret && (
+        <>
+          <p className="mb-2">Scan this QR code with your authenticator app:</p>
+          {otpUrl && (
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(
+                otpUrl
+              )}&size=200x200`}
+              alt="QR code"
+              className="mb-4"
+            />
+          )}
+          <p className="mb-2">Or enter this secret manually: {secret}</p>
+
+          <input
+            type="text"
+            placeholder="Enter 6-digit token"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            className="p-2 rounded text-black mb-4"
+          />
+
+          <button
+            onClick={verifyToken}
+            className="px-4 py-2 bg-green-600 rounded hover:bg-green-700"
+          >
+            Verify & Enable 2FA
+          </button>
+        </>
+      )}
+
+      {message && <p className="mt-4 text-center">{message}</p>}
     </div>
   );
 }
