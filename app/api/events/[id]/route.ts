@@ -2,9 +2,9 @@
 import { prisma } from "@/lib/prisma";
 import { NextRequest } from "next/server";
 
+// PUT - Full update
 export async function PUT(req: NextRequest, context: { params: { id: string } }) {
   const id = parseInt(context.params.id);
-
   const body = await req.json();
 
   if (!body.name || !body.date || !body.time || !body.userId) {
@@ -28,9 +28,9 @@ export async function PUT(req: NextRequest, context: { params: { id: string } })
   }
 }
 
+// PATCH - Partial update
 export async function PATCH(req: NextRequest, context: { params: { id: string } }) {
   const id = parseInt(context.params.id);
-
   const body = await req.json();
 
   try {
@@ -50,9 +50,9 @@ export async function PATCH(req: NextRequest, context: { params: { id: string } 
   }
 }
 
+// DELETE - Remove event
 export async function DELETE(_: Request, context: { params: { id: string } }) {
   const id = parseInt(context.params.id);
-
 
   try {
     await prisma.event.delete({
